@@ -2,6 +2,10 @@
 
 **Co**mmunity **l**abelling **d**river - a tool for inferring labels for data elements using provided corpus of annotations. In particular, the tools attempts to solve the *cold*-start problem of the recommender systems.
 
+<p align="center">
+    <img src="assets/images/logo.png"/>
+</p>
+
 ## Installation
 
 To install the project dependencies, create a conda environment using the provided config file:
