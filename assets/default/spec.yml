@@ -1,0 +1,13 @@
+user:
+  help: User of a community which can generate annotations
+  link:
+    user:
+      - follows
+      - friend
+      - knows
+    post:
+      - likes
+      - reposts
+      - knows
+post:
+  help: Post that can be operated by a user

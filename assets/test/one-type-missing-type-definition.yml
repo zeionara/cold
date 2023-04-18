@@ -1,0 +1,11 @@
+foo:
+  help: Some data type
+  link:
+    foo:
+      - bar
+      - baz
+      - qux
+    bar:
+      - bar
+      - baz
+      - qux
