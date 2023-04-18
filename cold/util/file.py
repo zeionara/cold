@@ -7,6 +7,7 @@ from .string import get_extension
 
 class Format(Enum):
     YAML = 'yaml'
+    COLD = 'cold'
 
     @staticmethod
     def from_path(path: str):
@@ -14,6 +15,9 @@ class Format(Enum):
 
         if extension in ('yaml', 'yml'):
             return Format.YAML
+
+        if extension == 'cld':
+            return Format.COLD
 
         raise ValueError(f'Cannot infer file format from path: "{path}"')
 

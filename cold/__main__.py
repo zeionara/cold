@@ -1,6 +1,6 @@
 from click import group, argument
 
-from .util.file import read
+from .util import Spec
 
 
 @group()
@@ -12,8 +12,8 @@ def main():
 @argument('path', type = str)
 @argument('spec', type = str)
 def probe(path: str, spec: str):
-    print(read(spec))
-    print(path, spec)
+    corpus = Spec(spec).read(path)
+    print(corpus)
 
 
 if __name__ == '__main__':
