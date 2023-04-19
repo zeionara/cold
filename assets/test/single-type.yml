@@ -1,0 +1,4 @@
+foo:
+  help: Some data type
+  link:
+    foo: float

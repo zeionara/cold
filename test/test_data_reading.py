@@ -35,6 +35,12 @@ class TestDataReading(TestCase):
             (('one', 17, 'two'), ('one', 18.0, 'three'), ('one', 'baz', 'four'))
         )
 
+    def test_single_link_config(self):
+        self.assertEqual(
+            Spec('assets/test/single-type.yml').read('assets/test/single-type-data.cld'),
+            (('one', 17.7, 'two'), ('one', 17.7, 'three'))
+        )
+
 
 if __name__ == '__main__':
     main()

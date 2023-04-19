@@ -43,7 +43,14 @@ class Spec:
                 for destination, link_types in links.items():
                     assert destination in sources, f'Unknown destination type {destination}'
 
-                    types[(source, destination)] = set(link_types)
+                    if isinstance(link_types, (list, tuple, set)):
+                        types[(source, destination)] = set(link_types)
+                    elif isinstance(link_types, str):
+                        types[(source, destination)] = {link_types}
+                    elif isinstance(link_types, dict):
+                        raise ValueError('Nested type definitions are not allowed')
+                    else:
+                        raise ValueError(f'Invalid type spec: {type(link_types)}')
 
         self.types = types
 
