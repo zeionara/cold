@@ -1,4 +1,4 @@
-aaa@foo +bar
-    bbb@foo -baz
+aaa@foo bar
+    baz bbb@foo
     ccc@foo
-    ddd@foo -bam
+    bam ddd@foo

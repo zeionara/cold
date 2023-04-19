@@ -1,7 +1,7 @@
 foo@user
-    one@post -likes
-        bar@user -likes
-        baz@user -knows
-    two@post -reposts +likes
+    likes one@post
+        likes bar@user
+        likes baz@user
+    reposts two@post likes
         qux@user
-        quux@user -knows
+        knows quux@user

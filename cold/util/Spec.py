@@ -8,7 +8,8 @@ from .file import read, Format
 #     if (links := data.get('link')) is not None:
 #         for (key,  in links:
 
-line_regexp = compile(r'(\s*)(\w+)@(\w+)(?:\s+-(\w+))?(?:\s+\+(\w+))?\s*')
+# line_regexp = compile(r'(\s*)(\w+)@(\w+)(?:\s+-(\w+))?(?:\s+\+(\w+))?\s*')
+line_regexp = compile(r'(\s*)(?:(\w+)\s+)?(\w+)@(\w+)(?:\s+(\w+))?\s*')
 
 # LEVEL_MARKER_LENGTH = None
 
@@ -18,8 +19,8 @@ class Line:
     level: int
     name: str
     type: str
-    upward: str
-    downward: str
+    backward: str
+    forward: str
 
 
 class Spec:
@@ -46,7 +47,7 @@ class Spec:
 
         match = line_regexp.fullmatch(line)
 
-        indentation, name, type_, upward_link_type, downward_link_type = match.groups()
+        indentation, backward_link_type, name, type_, forward_link_type = match.groups()
 
         level_marker_length = len(indentation)
         level_index = 0
@@ -61,7 +62,7 @@ class Spec:
                 # level_index = level_marker_length // LEVEL_MARKER_LENGTH
                 level_index = level_marker_length // self._level_marker_length
 
-        return Line(level = level_index, name = name, type = type_, upward = upward_link_type, downward = downward_link_type)
+        return Line(level = level_index, name = name, type = type_, backward = backward_link_type, forward = forward_link_type)
 
     def validate(self, lhs: Line, rhs: Line, link_type: str):
         inferred_allowed_link_types_list = False
@@ -103,12 +104,12 @@ class Spec:
                 if (last_line := context[-1]).level < line.level:
                     context.append(line)
 
-                    if line.upward is None:
-                        if last_line.downward is None:
+                    if line.backward is None:
+                        if last_line.forward is None:
                             raise ValueError('Cannot infer connection type')
-                        corpus.append(self.validate(last_line, line, last_line.downward))
+                        corpus.append(self.validate(last_line, line, last_line.forward))
                     else:
-                        corpus.append(self.validate(last_line, line, line.upward))
+                        corpus.append(self.validate(last_line, line, line.backward))
 
                     line = None
                 else:

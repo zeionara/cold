@@ -1,0 +1,9 @@
+foo:
+  help: Some data type
+  link:
+    bar:
+      - bar
+      - baz
+      - qux
+bar:
+  help: Some other data type
