@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from re import compile
 from .file import read, Format
+from .type import infer_type, Type
 
 
 # def validate(data: dict):
@@ -9,7 +10,13 @@ from .file import read, Format
 #         for (key,  in links:
 
 # line_regexp = compile(r'(\s*)(\w+)@(\w+)(?:\s+-(\w+))?(?:\s+\+(\w+))?\s*')
-line_regexp = compile(r'(\s*)(?:(\w+)\s+)?(\w+)@(\w+)(?:\s+(\w+))?\s*')
+line_regexp = compile(r'(\s*)(?:([\w0-9.]+)\s+)?(\w+)@(\w+)(?:\s+([\w0-9.]+))?\s*')
+
+INT_TYPE = 'int'
+FLOAT_TYPE = 'float'
+STRING_TYPE = 'string'
+
+reserved_values = {INT_TYPE, FLOAT_TYPE, STRING_TYPE}
 
 # LEVEL_MARKER_LENGTH = None
 
@@ -64,23 +71,37 @@ class Spec:
 
         return Line(level = level_index, name = name, type = type_, backward = backward_link_type, forward = forward_link_type)
 
-    def validate(self, lhs: Line, rhs: Line, link_type: str):
+    def validate(self, lhs: Line, rhs: Line, value: str):
         inferred_allowed_link_types_list = False
 
-        if (allowed_types := self.types.get((lhs.type, rhs.type))) is not None:
-            inferred_allowed_link_types_list = True
+        # 1. Preprocess passed link
 
-            if link_type in allowed_types:
-                return (lhs.name, link_type, rhs.name)
-        if (allowed_types := self.types.get((rhs.type, lhs.type))) is not None:
-            inferred_allowed_link_types_list = True
+        value_type = infer_type(value)
 
-            if link_type in allowed_types:
-                return (rhs.name, link_type, lhs.name)
+        # 2. Check preprocessing results against the spec
+
+        def make_triple(lhs: Line, rhs: Line):
+            nonlocal inferred_allowed_link_types_list
+
+            if (allowed_types := self.types.get((lhs.type, rhs.type))) is not None:
+                inferred_allowed_link_types_list = True
+
+                if value_type == Type.STRING and value not in reserved_values and value in allowed_types:
+                    return (lhs.name, value, rhs.name)
+                if value_type == Type.INT and INT_TYPE in allowed_types:
+                    return (lhs.name, int(value), rhs.name)
+                if value_type == Type.FLOAT and FLOAT_TYPE in allowed_types:
+                    return (lhs.name, float(value), rhs.name)
+
+        if (triple := make_triple(lhs = lhs, rhs = rhs)) is not None:
+            return triple
+
+        if (triple := make_triple(lhs = rhs, rhs = lhs)) is not None:
+            return triple
 
         if inferred_allowed_link_types_list:
-            raise ValueError(f'Link type {link_type} is not allowed between {lhs.type} and {rhs.type}')
-        raise ValueError(f'Cannot infer allowed link types between {lhs.type} and {rhs.type}')
+            raise ValueError(f'Value {value} is not allowed between {lhs.type} and {rhs.type}')
+        raise ValueError(f'Cannot infer allowed values between {lhs.type} and {rhs.type}')
 
     def handle(self, file, context: list = None, line: Line = None):
         if context is None:
