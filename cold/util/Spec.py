@@ -1,33 +1,11 @@
-from dataclasses import dataclass
-
-from re import compile
 from .file import read, Format
-from .type import infer_type, Type
+
+from .type import infer_type, Type, INT_TYPE, FLOAT_TYPE
+
+from .ColdLineParser import ColdLineParser, Line
 
 
-# def validate(data: dict):
-#     if (links := data.get('link')) is not None:
-#         for (key,  in links:
-
-# line_regexp = compile(r'(\s*)(\w+)@(\w+)(?:\s+-(\w+))?(?:\s+\+(\w+))?\s*')
-line_regexp = compile(r'(\s*)(?:([\w0-9.]+)\s+)?(\w+)@(\w+)(?:\s+([\w0-9.]+))?\s*')
-
-INT_TYPE = 'int'
-FLOAT_TYPE = 'float'
-STRING_TYPE = 'string'
-
-reserved_values = {INT_TYPE, FLOAT_TYPE, STRING_TYPE}
-
-# LEVEL_MARKER_LENGTH = None
-
-
-@dataclass
-class Line:
-    level: int
-    name: str
-    type: str
-    backward: str
-    forward: str
+reserved_values = {t.value for t in Type}
 
 
 class Spec:
@@ -53,30 +31,7 @@ class Spec:
                         raise ValueError(f'Invalid type spec: {type(link_types)}')
 
         self.types = types
-
-        self._level_marker_length = None
-
-    def parse_line(self, line):
-        # global LEVEL_MARKER_LENGTH
-
-        match = line_regexp.fullmatch(line)
-
-        indentation, backward_link_type, name, type_, forward_link_type = match.groups()
-
-        level_marker_length = len(indentation)
-        level_index = 0
-
-        if level_marker_length > 0:
-            # if LEVEL_MARKER_LENGTH is None:
-            if self._level_marker_length is None:
-                # LEVEL_MARKER_LENGTH = level_marker_length
-                self._level_marker_length = level_marker_length
-                level_index = 1
-            else:
-                # level_index = level_marker_length // LEVEL_MARKER_LENGTH
-                level_index = level_marker_length // self._level_marker_length
-
-        return Line(level = level_index, name = name, type = type_, backward = backward_link_type, forward = forward_link_type)
+        self.line_parser = ColdLineParser()
 
     def validate(self, lhs: Line, rhs: Line, value: str):
         inferred_allowed_link_types_list = False
@@ -123,7 +78,7 @@ class Spec:
                 if not input_line:
                     break
 
-                line = self.parse_line(input_line)
+                line = self.line_parser.parse_line(input_line)
 
             if len(context) < 1:
                 context.append(line)
