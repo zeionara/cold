@@ -3,6 +3,8 @@ from .file import read, Format
 from .type import infer_type, Type, INT_TYPE, FLOAT_TYPE
 
 from .ColdLineParser import ColdLineParser, Line
+from .NodeFactory import NodeFactory
+from .NodeRegistry import NodeRegistry
 
 
 reserved_values = {t.value for t in Type}
@@ -15,8 +17,11 @@ class Spec:
         sources = set(data.keys())
 
         types = {}
+        node_types = set()
 
         for source, config in data.items():
+            node_types.add(source)
+
             if (links := config.get('link')) is not None:
                 for destination, link_types in links.items():
                     assert destination in sources, f'Unknown destination type {destination}'
@@ -30,6 +35,10 @@ class Spec:
                     else:
                         raise ValueError(f'Invalid type spec: {type(link_types)}')
 
+        self.factory = NodeFactory.from_types(node_types)
+
+        # print(factory.make('foo', 'user'))
+
         self.types = types
         self.line_parser = ColdLineParser()
 
@@ -42,6 +51,9 @@ class Spec:
 
         # 2. Check preprocessing results against the spec
 
+        def compress(line: Line):
+            return (line.name, line.type)
+
         def make_triple(lhs: Line, rhs: Line):
             nonlocal inferred_allowed_link_types_list
 
@@ -49,11 +61,11 @@ class Spec:
                 inferred_allowed_link_types_list = True
 
                 if value_type == Type.STRING and value not in reserved_values and value in allowed_types:
-                    return (lhs.name, value, rhs.name)
+                    return (compress(lhs), value, compress(rhs))
                 if value_type == Type.INT and INT_TYPE in allowed_types:
-                    return (lhs.name, int(value), rhs.name)
+                    return (compress(lhs), int(value), compress(rhs))
                 if value_type == Type.FLOAT and FLOAT_TYPE in allowed_types:
-                    return (lhs.name, float(value), rhs.name)
+                    return (compress(lhs), float(value), compress(rhs))
 
         if (triple := make_triple(lhs = lhs, rhs = rhs)) is not None:
             return triple
@@ -69,7 +81,8 @@ class Spec:
         if context is None:
             context = []
 
-        corpus = []
+        # corpus = []
+        corpus = NodeRegistry(self.factory)
 
         while True:
             if line is None:
@@ -90,9 +103,11 @@ class Spec:
                     if line.backward is None:
                         if last_line.forward is None:
                             raise ValueError('Cannot infer connection type')
-                        corpus.append(self.validate(last_line, line, last_line.forward))
+                        # corpus.append(self.validate(last_line, line, last_line.forward))
+                        corpus.push(self.validate(last_line, line, last_line.forward))
                     else:
-                        corpus.append(self.validate(last_line, line, line.backward))
+                        # corpus.append(self.validate(last_line, line, line.backward))
+                        corpus.push(self.validate(last_line, line, line.backward))
 
                     line = None
                 else:
@@ -106,7 +121,8 @@ class Spec:
 
                     context = updated_context
 
-        return tuple(corpus)
+        # return tuple(corpus)
+        return corpus.cache
 
     def read(self, path: str):
         assert Format.from_path(path) == Format.COLD

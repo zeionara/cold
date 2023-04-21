@@ -13,7 +13,9 @@ def main():
 @argument('spec', type = str)
 def probe(path: str, spec: str):
     # corpus = Spec(spec).read(path)
+
     spec = Spec(spec)
+
     print(spec.read(path))
 
 
