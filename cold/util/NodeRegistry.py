@@ -2,9 +2,12 @@ from .NodeFactory import NodeFactory
 
 
 class NodeRegistry:
-    def __init__(self, factory: NodeFactory):
+    def __init__(self, factory: NodeFactory, directed: bool = True):
         self.factory = factory
         self.cache = {}
+
+        self.directed = directed
+        self.not_directed = not directed
 
     def get_node(self, name: str, type_: str, /):
         if (objects_with_the_same_type := self.cache.get(type_)) is None:
@@ -22,3 +25,6 @@ class NodeRegistry:
         rhs = self.get_node(rhs_name, rhs_type)
 
         lhs.push(link, rhs)
+
+        if self.not_directed:
+            rhs.push(link, lhs)

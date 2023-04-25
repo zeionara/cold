@@ -11,7 +11,7 @@ reserved_values = {t.value for t in Type}
 
 
 class Spec:
-    def __init__(self, path: str):
+    def __init__(self, path: str, directed: bool = True):
         self.data = data = read(path)
 
         sources = set(data.keys())
@@ -41,6 +41,7 @@ class Spec:
 
         self.types = types
         self.line_parser = ColdLineParser()
+        self.directed = directed
 
     def validate(self, lhs: Line, rhs: Line, value: str):
         inferred_allowed_link_types_list = False
@@ -82,7 +83,7 @@ class Spec:
             context = []
 
         # corpus = []
-        corpus = NodeRegistry(self.factory)
+        corpus = NodeRegistry(self.factory, directed = self.directed)
 
         while True:
             if line is None:

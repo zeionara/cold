@@ -1,6 +1,7 @@
-from click import group, argument
+from json import dumps
+from click import group, argument, option
 
-from .util import Spec
+from .util import Spec, JSONEncoder
 
 
 @group()
@@ -11,12 +12,14 @@ def main():
 @main.command()
 @argument('path', type = str)
 @argument('spec', type = str)
-def probe(path: str, spec: str):
+@option('--undirected', '-u', is_flag = True)
+def probe(path: str, spec: str, undirected: bool):
     # corpus = Spec(spec).read(path)
 
-    spec = Spec(spec)
+    spec = Spec(spec, directed = not undirected)
 
-    print(spec.read(path))
+    print(dumps(spec.read(path), indent = 2, cls = JSONEncoder))
+    # print(MyEncoder().encode(spec.read(path)))
 
 
 if __name__ == '__main__':

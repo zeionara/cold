@@ -1,3 +1,5 @@
 #!/bin/bash
 
-python -m cold probe assets/default/train.cld assets/default/spec.yml
+path=${1:-assets/default/train.cld}
+
+python -m cold probe "$path" assets/default/spec.yml

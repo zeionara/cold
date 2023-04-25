@@ -13,8 +13,22 @@ class Node:
 
     def push(self, link_type, value: Node):
         if (values := self.links.get(link_type)) is None:
-            self.links[link_type] = [value]
+            self.links[link_type] = [value.name]
         elif value not in values:
-            values.append(value)
+            values.append(value.name)
 
         return self
+
+    @property
+    def as_dict(self):
+        items = self.links.items()
+
+        if len(items) > 0:
+            return {
+                'name': self.name,
+                'links': dict(items)
+            }
+
+        return {
+            'name': self.name
+        }
