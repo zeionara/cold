@@ -22,4 +22,4 @@ class NodeFactory:
         )
 
     def make(self, name: str, type_: str, /):
-        return self._type_to_node_class[type_](name, {})
+        return self._type_to_node_class[type_](name, [])

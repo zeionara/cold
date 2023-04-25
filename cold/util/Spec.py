@@ -123,7 +123,8 @@ class Spec:
                     context = updated_context
 
         # return tuple(corpus)
-        return corpus.cache
+        # return corpus.cache
+        return corpus.flat_cache
 
     def read(self, path: str):
         assert Format.from_path(path) == Format.COLD

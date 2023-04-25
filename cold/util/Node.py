@@ -5,30 +5,54 @@ from dataclasses import dataclass
 
 
 @dataclass
+class Link:
+    name: any
+    items: list[str]
+
+    @property
+    def as_dict(self):
+        return {
+            'name': self.name,
+            'items': tuple(self.items)
+        }
+
+
+@dataclass
 class Node:
     type: ClassVar[str] = None
 
     name: str
-    links: dict
+    links: list = None
 
     def push(self, link_type, value: Node):
-        if (values := self.links.get(link_type)) is None:
-            self.links[link_type] = [value.name]
-        elif value not in values:
-            values.append(value.name)
+        for link in self.links:
+            if link.name == link_type:
+                for item in link.items:
+                    if item.name == value.name:
+                        break
+                else:
+                    link.items.append(value.clone_without_links())
+                break
+        else:
+            self.links.append(Link(name = link_type, items = [value.clone_without_links()]))
 
         return self
 
     @property
     def as_dict(self):
-        items = self.links.items()
+        links = self.links
 
-        if len(items) > 0:
+        if links is not None and len(links) > 0:
             return {
                 'name': self.name,
-                'links': dict(items)
+                'type': self.type,
+                'links': links
             }
 
         return {
-            'name': self.name
+            'name': self.name,
+            'type': self.type
         }
+
+    def clone_without_links(self):
+        return type(self)(self.name)

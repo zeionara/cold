@@ -1,6 +1,7 @@
 from unittest import TestCase, main
 
 from cold.util import Spec, JSONEncoder
+from cold.util.string import dedent
 
 
 class TestDataReading(TestCase):
@@ -14,7 +15,12 @@ class TestDataReading(TestCase):
     def test_one_type_config_usage(self):
         self.assertEqual(
             self.encoder.encode(Spec('assets/test/one-type.yml').read('assets/test/one-type-data.cld')),
-            '{"foo": {"aaa": {"name": "aaa", "links": {"baz": ["bbb"], "bar": ["ccc"]}}, "bbb": {"name": "bbb"}, "ccc": {"name": "ccc"}}}'
+            dedent(
+                """
+                [{"name": "aaa", "type": "foo", "links": [{"name": "baz", "items": [{"name": "bbb", "type": "foo"}]},
+                {"name": "bar", "items": [{"name": "ccc", "type": "foo"}]}]}, {"name": "bbb", "type": "foo"}, {"name": "ccc", "type": "foo"}]
+                """
+            )
         )
 
     def test_one_type_config_invalid_link(self):
@@ -38,13 +44,24 @@ class TestDataReading(TestCase):
     def test_numeric_data_parsing(self):
         self.assertEqual(
             self.encoder.encode(Spec('assets/test/one-type-with-numeric-value.yml').read('assets/test/one-type-with-numeric-value-data.cld')),
-            '{"foo": {"one": {"name": "one", "links": {"17": ["two"], "18.0": ["three"], "baz": ["four"]}}, "two": {"name": "two"}, "three": {"name": "three"}, "four": {"name": "four"}}}'
+            dedent(
+                """
+                [{"name": "one", "type": "foo", "links": [{"name": 17, "items": [{"name": "two", "type": "foo"}]},
+                {"name": 18.0, "items": [{"name": "three", "type": "foo"}]}, {"name": "baz", "items": [{"name": "four", "type": "foo"}]}]},
+                {"name": "two", "type": "foo"}, {"name": "three", "type": "foo"}, {"name": "four", "type": "foo"}]
+                """
+            )
         )
 
     def test_single_link_config(self):
         self.assertEqual(
             self.encoder.encode(Spec('assets/test/single-type.yml').read('assets/test/single-type-data.cld')),
-            '{"foo": {"one": {"name": "one", "links": {"17.7": ["two", "three"]}}, "two": {"name": "two"}, "three": {"name": "three"}}}'
+            dedent(
+                """
+                [{"name": "one", "type": "foo", "links": [{"name": 17.7, "items": [{"name": "two", "type": "foo"},
+                {"name": "three", "type": "foo"}]}]}, {"name": "two", "type": "foo"}, {"name": "three", "type": "foo"}]
+                """
+            )
         )
 
 
