@@ -39,6 +39,11 @@ class Spec:
 
         # print(factory.make('foo', 'user'))
 
+        if directed:
+            for (lhs, rhs), links in types.items():
+                if (symmetric_links := types.get((rhs, lhs))) and lhs != rhs and len(common_links := symmetric_links.intersection(links)) > 0:
+                    raise ValueError(f'Cannot unambiguosly infer link direction between {lhs} and {rhs} for link types {", ".join(common_links)}')
+
         self.types = types
         self.line_parser = ColdLineParser()
         self.directed = directed

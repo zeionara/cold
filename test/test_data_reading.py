@@ -11,6 +11,12 @@ class TestDataReading(TestCase):
         self.encoder = JSONEncoder()
         self.default_encoder = DefaultJSONEncoder()
 
+    def test_conflicting_link_definitions(self):
+        with self.assertRaises(ValueError) as context:
+            Spec('assets/test/conflicting-link-definitions.yml')
+
+        assert 'Cannot unambiguosly infer link direction between foo and bar for link types one' in context.exception.args
+
     def test_valid_one_type_config(self):
         Spec('assets/test/one-type.yml')
 
