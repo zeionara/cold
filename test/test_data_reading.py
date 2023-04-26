@@ -1,8 +1,64 @@
 from json import JSONEncoder as DefaultJSONEncoder  # , dumps
 from unittest import TestCase, main
 
-from cold.util import Spec, JSONEncoder
+from cold.util import Spec, JSONEncoder, NodeFactory, Node, Link
+from cold.util.collection import argmax
+
 # from cold.util.string import dedent
+from textwrap import dedent
+
+
+def get_max_linked_node(nodes: list[Node]):
+    max_linked_node = argmax(nodes, lambda node: 0 if node.links is None else sum(len(link.items) for link in node.links))
+
+    type_name_pairs = set() if max_linked_node.links is None else set((node.type, node.name) for link in max_linked_node.links for node in link.items)
+
+    type_name_pair_to_rich_node = {(node.type, node.name): node for node in nodes}
+
+    if max_linked_node.links is not None:
+        for link in max_linked_node.links:
+            link.items = tuple(type_name_pair_to_rich_node.get((node.type, node.name), node) for node in link.items)
+
+    type_name_pairs.add((max_linked_node.type, max_linked_node.name))
+
+    return max_linked_node, [node for node in nodes if (node.type, node.name) not in type_name_pairs]
+
+
+def get_max_linked_link(node: Node):
+    if node.links is None:
+        return None, None
+
+    max_linked_link = argmax(node.links, lambda link: len(link.items))
+    links = [link_ for link_ in node.links if link_ != max_linked_link]
+
+    return max_linked_link, links
+
+
+def encode_node(node: Node, link: Link = None, indent: int = 4, level: int = 0):
+    indentation_first_line = ' ' * indent * level
+
+    if link is None:
+        return f'{indentation_first_line}{node.name}@{node.type}'
+
+    # indentation = ' ' * indent * (level + 1)
+
+    return f'{indentation_first_line}{node.name}@{node.type} {link.name}' + ''.join(f'\n{encode([node], indent, level + 1)}' for node in link.items)
+
+
+def encode(nodes: list[Node], indent: int = 4, level: int = 0):
+    node, nodes = get_max_linked_node(nodes)
+    link, links = get_max_linked_link(node)
+
+    if link is None:
+        return encode_node(node, link, indent, level)
+
+    if len(links) > 0:
+        raise ValueError('More than one link is not supported')
+
+    if len(nodes) > 0:
+        raise ValueError('More than one node is not supported')
+
+    return encode_node(node, link, indent, level)
 
 
 class TestDataReading(TestCase):
@@ -10,6 +66,33 @@ class TestDataReading(TestCase):
     def setUp(self):
         self.encoder = JSONEncoder()
         self.default_encoder = DefaultJSONEncoder()
+
+    def test_cold_file_generation(self):
+        factory = NodeFactory.from_types({'foo', 'bar'})
+
+        one = factory.make('one', 'foo')
+        two = factory.make('two', 'foo')
+
+        three = factory.make('three', 'bar')
+
+        one.push('qux', two)
+        one.push('qux', three)
+
+        two.push('qux', three)
+
+        nodes = [three, two, one]
+
+        self.assertEqual(
+            encode(nodes),
+            dedent(
+                """
+                one@foo qux
+                    two@foo qux
+                        three@bar
+                    three@bar
+                """
+            ).strip()
+        )
 
     def test_two_types_with_symmetric_link_in_undirected_graph(self):
         with self.assertRaises(ValueError) as context:
