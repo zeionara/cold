@@ -18,7 +18,7 @@ class NodeRegistry:
             return node
         return object_with_the_same_name
 
-    def push(self, triple: tuple):
+    def push(self, triple: tuple, get_backward_link: callable = None):
         ((lhs_name, lhs_type), link, (rhs_name, rhs_type)) = triple
 
         lhs = self.get_node(lhs_name, lhs_type)
@@ -28,6 +28,10 @@ class NodeRegistry:
 
         if self.not_directed:
             rhs.push(link, lhs)
+        elif get_backward_link is not None and (backward_link := get_backward_link(lhs_type, rhs_type, link)) is not None:
+            rhs.push(backward_link, lhs)
+        # elif self.not_directed:
+        #     rhs.push(link if get_backward_link is None else get_backward_link(lhs_type, rhs_type, link), lhs)
 
     @property
     def flat_cache(self):

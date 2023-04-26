@@ -1,0 +1,12 @@
+foo:
+  help: Some data type
+  link:
+    bar: 
+      - one
+      - two
+bar:
+  help: Some other data type
+  link:
+    foo:
+      - one
+      - three

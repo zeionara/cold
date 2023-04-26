@@ -10,14 +10,30 @@ from .NodeRegistry import NodeRegistry
 reserved_values = {t.value for t in Type}
 
 
+INVERSE_LINK_SEPARATOR = '^'
+
+
 class Spec:
     def __init__(self, path: str, directed: bool = True):
         self.data = data = read(path)
+        self.directed = directed
 
         sources = set(data.keys())
 
         types = {}
+        symmetric_types = {}
+
         node_types = set()
+
+        def register_symmetric_links(source: str, destination: str, forward: str, backward: str = None):
+            if backward is not None:
+                symmetric_types[(source, destination, forward)] = backward
+                symmetric_types[(destination, source, backward)] = forward
+
+                if (backward_links := types.get((destination, source))) is None:
+                    types[(destination, source)] = {backward}
+                else:
+                    backward_links.add(backward)
 
         for source, config in data.items():
             node_types.add(source)
@@ -26,10 +42,26 @@ class Spec:
                 for destination, link_types in links.items():
                     assert destination in sources, f'Unknown destination type {destination}'
 
+                    if not directed and (destination, source) in types:
+                        raise ValueError(f'Multiple lists of links are not allowed in undirected graphs (violated by {source} and {destination})')
+
                     if isinstance(link_types, (list, tuple, set)):
-                        types[(source, destination)] = set(link_types)
+                        handled_links = set()
+
+                        for link in link_types:
+                            forward, backward = self.handle_link_type(link)
+
+                            register_symmetric_links(source, destination, forward, backward)
+
+                            handled_links.add(forward)
+
+                        types[(source, destination)] = handled_links
                     elif isinstance(link_types, str):
-                        types[(source, destination)] = {link_types}
+                        forward, backward = self.handle_link_type(link_types)
+
+                        register_symmetric_links(source, destination, forward, backward)
+
+                        types[(source, destination)] = {forward}
                     elif isinstance(link_types, dict):
                         raise ValueError('Nested type definitions are not allowed')
                     else:
@@ -45,8 +77,21 @@ class Spec:
                     raise ValueError(f'Cannot unambiguosly infer link direction between {lhs} and {rhs} for link types {", ".join(common_links)}')
 
         self.types = types
+        self.symmetric_types = symmetric_types
+
         self.line_parser = ColdLineParser()
-        self.directed = directed
+
+    def handle_link_type(self, link: str):
+        if INVERSE_LINK_SEPARATOR in link:
+            if not self.directed:
+                raise ValueError(f'Inverse link spec is not allowed for undirected graphs (see {link})')
+
+            link_components = link.split(INVERSE_LINK_SEPARATOR)
+
+            assert len(link_components) == 2, f'Multiple symmetric alternatives given in {link}, which is not allowed'
+
+            return link_components
+        return link, None
 
     def validate(self, lhs: Line, rhs: Line, value: str):
         inferred_allowed_link_types_list = False
@@ -110,10 +155,10 @@ class Spec:
                         if last_line.forward is None:
                             raise ValueError('Cannot infer connection type')
                         # corpus.append(self.validate(last_line, line, last_line.forward))
-                        corpus.push(self.validate(last_line, line, last_line.forward))
+                        corpus.push(self.validate(last_line, line, last_line.forward), lambda lhs, rhs, link: self.symmetric_types.get((lhs, rhs, link)))
                     else:
                         # corpus.append(self.validate(last_line, line, line.backward))
-                        corpus.push(self.validate(last_line, line, line.backward))
+                        corpus.push(self.validate(last_line, line, line.backward), lambda lhs, rhs, link: self.symmetric_types.get((lhs, rhs, link)))
 
                     line = None
                 else:

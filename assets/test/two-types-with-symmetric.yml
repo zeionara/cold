@@ -1,0 +1,8 @@
+foo:
+  help: Some data type
+  link:
+    bar:
+      - bar^rab
+      - baz
+bar:
+  help: Some other data type

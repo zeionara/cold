@@ -11,6 +11,53 @@ class TestDataReading(TestCase):
         self.encoder = JSONEncoder()
         self.default_encoder = DefaultJSONEncoder()
 
+    def test_two_types_with_symmetric_link_in_undirected_graph(self):
+        with self.assertRaises(ValueError) as context:
+            Spec('assets/test/two-types-with-symmetric.yml', directed = False)
+
+        assert 'Inverse link spec is not allowed for undirected graphs (see bar^rab)' in context.exception.args
+
+    def test_two_types_with_symmetric_link(self):
+        self.assertEqual(
+            self.encoder.encode(Spec('assets/test/two-types-with-symmetric.yml').read('assets/test/two-types-single-link.cld')),
+            self.default_encoder.encode(
+                {
+                    "nodes": [
+                        {
+                            "name": "one",
+                            "type": "foo",
+                            "links": [
+                                {
+                                    "name": "bar",
+                                    "items": [
+                                        {
+                                            "name": "two",
+                                            "type": "bar"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "two",
+                            "type": "bar",
+                            "links": [
+                                {
+                                    "name": "rab",
+                                    "items": [
+                                        {
+                                            "name": "one",
+                                            "type": "foo"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            )
+        )
+
     def test_conflicting_link_definitions(self):
         with self.assertRaises(ValueError) as context:
             Spec('assets/test/conflicting-link-definitions.yml')
