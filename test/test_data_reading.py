@@ -1,25 +1,126 @@
+from json import JSONEncoder as DefaultJSONEncoder  # , dumps
 from unittest import TestCase, main
 
 from cold.util import Spec, JSONEncoder
-from cold.util.string import dedent
+# from cold.util.string import dedent
 
 
 class TestDataReading(TestCase):
 
     def setUp(self):
         self.encoder = JSONEncoder()
+        self.default_encoder = DefaultJSONEncoder()
 
     def test_valid_one_type_config(self):
         Spec('assets/test/one-type.yml')
 
+    def test_one_type_config_usage_undirected(self):
+        # print(dumps(Spec('assets/test/one-type.yml', directed = False).read('assets/test/one-type-data.cld'), indent = 4, cls = JSONEncoder))
+        self.assertEqual(
+            self.encoder.encode(Spec('assets/test/one-type.yml', directed = False).read('assets/test/one-type-data.cld')),
+            self.default_encoder.encode(
+                {
+                    'nodes': [
+                        {
+                            "name": "aaa",
+                            "type": "foo",
+                            "links": [
+                                {
+                                    "name": "baz",
+                                    "items": [
+                                        {
+                                            "name": "bbb",
+                                            "type": "foo"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "bar",
+                                    "items": [
+                                        {
+                                            "name": "ccc",
+                                            "type": "foo"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "bbb",
+                            "type": "foo",
+                            "links": [
+                                {
+                                    "name": "baz",
+                                    "items": [
+                                        {
+                                            "name": "aaa",
+                                            "type": "foo"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "ccc",
+                            "type": "foo",
+                            "links": [
+                                {
+                                    "name": "bar",
+                                    "items": [
+                                        {
+                                            "name": "aaa",
+                                            "type": "foo"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            )
+        )
+
     def test_one_type_config_usage(self):
+        # print(dumps(Spec('assets/test/one-type.yml', directed = False).read('assets/test/one-type-data.cld'), indent = 4, cls = JSONEncoder))
         self.assertEqual(
             self.encoder.encode(Spec('assets/test/one-type.yml').read('assets/test/one-type-data.cld')),
-            dedent(
-                """
-                [{"name": "aaa", "type": "foo", "links": [{"name": "baz", "items": [{"name": "bbb", "type": "foo"}]},
-                {"name": "bar", "items": [{"name": "ccc", "type": "foo"}]}]}, {"name": "bbb", "type": "foo"}, {"name": "ccc", "type": "foo"}]
-                """
+            self.default_encoder.encode(
+                {
+                    'nodes': [
+                        {
+                            "name": "aaa",
+                            "type": "foo",
+                            "links": [
+                                {
+                                    "name": "baz",
+                                    "items": [
+                                        {
+                                            "name": "bbb",
+                                            "type": "foo"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "bar",
+                                    "items": [
+                                        {
+                                            "name": "ccc",
+                                            "type": "foo"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "bbb",
+                            "type": "foo"
+                        },
+                        {
+                            "name": "ccc",
+                            "type": "foo"
+                        }
+                    ]
+                }
             )
         )
 
@@ -42,25 +143,98 @@ class TestDataReading(TestCase):
         self.assertIn('Unknown destination type bar', context.exception.args)
 
     def test_numeric_data_parsing(self):
+        # print(dumps(Spec('assets/test/one-type-with-numeric-value.yml').read('assets/test/one-type-with-numeric-value-data.cld'), indent = 4, cls = JSONEncoder))
         self.assertEqual(
             self.encoder.encode(Spec('assets/test/one-type-with-numeric-value.yml').read('assets/test/one-type-with-numeric-value-data.cld')),
-            dedent(
-                """
-                [{"name": "one", "type": "foo", "links": [{"name": 17, "items": [{"name": "two", "type": "foo"}]},
-                {"name": 18.0, "items": [{"name": "three", "type": "foo"}]}, {"name": "baz", "items": [{"name": "four", "type": "foo"}]}]},
-                {"name": "two", "type": "foo"}, {"name": "three", "type": "foo"}, {"name": "four", "type": "foo"}]
-                """
+            self.default_encoder.encode(
+                {
+                    "nodes": [
+                        {
+                            "name": "one",
+                            "type": "foo",
+                            "links": [
+                                {
+                                    "name": 17,
+                                    "items": [
+                                        {
+                                            "name": "two",
+                                            "type": "foo"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": 18.0,
+                                    "items": [
+                                        {
+                                            "name": "three",
+                                            "type": "foo"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "baz",
+                                    "items": [
+                                        {
+                                            "name": "four",
+                                            "type": "foo"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "two",
+                            "type": "foo"
+                        },
+                        {
+                            "name": "three",
+                            "type": "foo"
+                        },
+                        {
+                            "name": "four",
+                            "type": "foo"
+                        }
+                    ]
+                }
             )
         )
 
     def test_single_link_config(self):
+        # print(dumps(Spec('assets/test/single-type.yml').read('assets/test/single-type-data.cld'), indent = 4, cls = JSONEncoder))
         self.assertEqual(
             self.encoder.encode(Spec('assets/test/single-type.yml').read('assets/test/single-type-data.cld')),
-            dedent(
-                """
-                [{"name": "one", "type": "foo", "links": [{"name": 17.7, "items": [{"name": "two", "type": "foo"},
-                {"name": "three", "type": "foo"}]}]}, {"name": "two", "type": "foo"}, {"name": "three", "type": "foo"}]
-                """
+            self.default_encoder.encode(
+                {
+                    "nodes": [
+                        {
+                            "name": "one",
+                            "type": "foo",
+                            "links": [
+                                {
+                                    "name": 17.7,
+                                    "items": [
+                                        {
+                                            "name": "two",
+                                            "type": "foo"
+                                        },
+                                        {
+                                            "name": "three",
+                                            "type": "foo"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "two",
+                            "type": "foo"
+                        },
+                        {
+                            "name": "three",
+                            "type": "foo"
+                        }
+                    ]
+                }
             )
         )
 

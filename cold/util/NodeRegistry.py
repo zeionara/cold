@@ -31,8 +31,10 @@ class NodeRegistry:
 
     @property
     def flat_cache(self):
-        return tuple(
-            node
-            for type_key, type_nodes in self.cache.items()
-            for node_key, node in type_nodes.items()
-        )
+        return {
+            'nodes': tuple(
+                node
+                for type_key, type_nodes in self.cache.items()
+                for node_key, node in type_nodes.items()
+            )
+        }
