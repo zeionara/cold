@@ -8,10 +8,33 @@ from cold.util.collection import argmax
 from textwrap import dedent
 
 
+def collect_type_name_pairs(nodes: tuple[Node], all_nodes: tuple[Node], type_name_pairs: set = None):
+    type_name_pair_to_rich_node = {(node.type, node.name): node for node in all_nodes}
+
+    if type_name_pairs is None:
+        type_name_pairs = set()
+
+    more_nodes = []
+
+    for node in nodes:
+        if node.links is not None and len(node.links) > 0:
+            for link in node.links:
+                for nnode in link.items:  # nnode stands for 'next node'
+                    type_name_pairs.add((nnode.type, nnode.name))
+                    more_nodes.append(type_name_pair_to_rich_node[(nnode.type, nnode.name)])
+
+    if len(more_nodes) > 0:
+        collect_type_name_pairs(more_nodes, all_nodes, type_name_pairs)
+
+    return type_name_pairs
+
+
 def get_max_linked_node(nodes: list[Node], all_nodes: tuple[Node]):
     max_linked_node = argmax(nodes, lambda node: 0 if node.links is None else sum(len(link.items) for link in node.links))
 
-    type_name_pairs = set() if max_linked_node.links is None or len(max_linked_node.links) < 1 else set((node.type, node.name) for link in max_linked_node.links for node in link.items)
+    # type_name_pairs = set() if max_linked_node.links is None or len(max_linked_node.links) < 1 else set((node.type, node.name) for link in max_linked_node.links for node in link.items)
+
+    type_name_pairs = collect_type_name_pairs([max_linked_node], all_nodes)
 
     type_name_pair_to_rich_node = {(node.type, node.name): node for node in all_nodes}
 
@@ -34,18 +57,30 @@ def get_max_linked_link(node: Node):
     return max_linked_link, links
 
 
-def encode_node(node: Node, all_nodes: tuple[Node], link: Link = None, indent: int = 4, level: int = 0):
+def encode_node(node: Node, all_nodes: tuple[Node], link: Link = None, indent: int = 4, level: int = 0, links: tuple[Link] = None, prefix: str = None):
     indentation_first_line = ' ' * indent * level
 
     if link is None:
-        return f'{indentation_first_line}{node.name}@{node.type}'
+        if prefix is None:
+            return f'{indentation_first_line}{node.name}@{node.type}'
+        return f'{indentation_first_line}{prefix} {node.name}@{node.type}'
 
     # indentation = ' ' * indent * (level + 1)
 
-    return f'{indentation_first_line}{node.name}@{node.type} {link.name}' + ''.join(f'\n{encode([node], all_nodes, indent, level + 1)}' for node in link.items)
+    if prefix is None:
+        return (
+            f'{indentation_first_line}{node.name}@{node.type} {link.name}' +
+            ''.join(f'\n{encode([node], all_nodes, indent, level + 1)}' for node in link.items) +
+            ('' if links is None else ''.join(f'\n{encode([node], all_nodes, indent, level + 1, link.name)}' for link in links for node in link.items))
+        )
+    return (
+        f'{indentation_first_line}{prefix} {node.name}@{node.type} {link.name}' +
+        ''.join(f'\n{encode([node], all_nodes, indent, level + 1)}' for node in link.items) +
+        ('' if links is None else ''.join(f'\n{encode([node], all_nodes, indent, level + 1, link.name)}' for link in links for node in link.items))
+    )
 
 
-def encode(nodes: list[Node], all_nodes: tuple[Node] = None, indent: int = 4, level: int = 0):
+def encode(nodes: list[Node], all_nodes: tuple[Node] = None, indent: int = 4, level: int = 0, prefix: str = None):
     if all_nodes is None:
         all_nodes = tuple(nodes)
 
@@ -53,15 +88,17 @@ def encode(nodes: list[Node], all_nodes: tuple[Node] = None, indent: int = 4, le
     link, links = get_max_linked_link(node)
 
     if link is None:
-        return encode_node(node, all_nodes, link, indent, level)
+        return encode_node(node, all_nodes, link, indent, level, prefix = prefix)
 
-    if len(links) > 0:
-        raise ValueError(f'More than one link is not supported: {links}')
+    sorted_links = sorted(links, key = lambda lhs: len(link.items), reverse = True)
+
+    # if len(links) > 0:
+    #     raise ValueError(f'More than one link is not supported: {links}')
 
     # if len(nodes) > 0:
     #     raise ValueError(f'More than one node is not supported: {nodes}')
 
-    return encode_node(node, all_nodes, link, indent, level) + ('' if len(nodes) < 1 else '\n' + encode(nodes, all_nodes, indent, level))
+    return encode_node(node, all_nodes, link, indent, level, sorted_links, prefix) + ('' if len(nodes) < 1 else '\n' + encode(nodes, all_nodes, indent, level, prefix))
 
 
 class TestDataReading(TestCase):
@@ -69,6 +106,42 @@ class TestDataReading(TestCase):
     def setUp(self):
         self.encoder = JSONEncoder()
         self.default_encoder = DefaultJSONEncoder()
+
+    def test_cold_file_generation_multiple_first_level_links(self):
+        factory = NodeFactory.from_types({'foo', 'bar'})
+
+        one = factory.make('one', 'foo')
+        two = factory.make('two', 'foo')
+
+        three = factory.make('three', 'bar')
+
+        four = factory.make('four', 'foo')
+        five = factory.make('five', 'bar')
+
+        one.push('qux', two)
+        one.push('qux', three)
+
+        two.push('qux', three)
+
+        one.push('quux', four)
+
+        four.push('quuz', five)
+
+        nodes = [five, four, three, two, one]
+
+        self.assertEqual(
+            encode(nodes),
+            dedent(
+                """
+                one@foo qux
+                    two@foo qux
+                        three@bar
+                    three@bar
+                    quux four@foo quuz
+                        five@bar
+                """
+            ).strip()
+        )
 
     def test_cold_file_generation_multiple_first_level_nodes(self):
         factory = NodeFactory.from_types({'foo', 'bar'})
