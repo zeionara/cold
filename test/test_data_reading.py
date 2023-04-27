@@ -8,16 +8,16 @@ from cold.util.collection import argmax
 from textwrap import dedent
 
 
-def get_max_linked_node(nodes: list[Node]):
+def get_max_linked_node(nodes: list[Node], all_nodes: tuple[Node]):
     max_linked_node = argmax(nodes, lambda node: 0 if node.links is None else sum(len(link.items) for link in node.links))
 
-    type_name_pairs = set() if max_linked_node.links is None else set((node.type, node.name) for link in max_linked_node.links for node in link.items)
+    type_name_pairs = set() if max_linked_node.links is None or len(max_linked_node.links) < 1 else set((node.type, node.name) for link in max_linked_node.links for node in link.items)
 
-    type_name_pair_to_rich_node = {(node.type, node.name): node for node in nodes}
+    type_name_pair_to_rich_node = {(node.type, node.name): node for node in all_nodes}
 
     if max_linked_node.links is not None:
         for link in max_linked_node.links:
-            link.items = tuple(type_name_pair_to_rich_node.get((node.type, node.name), node) for node in link.items)
+            link.items = tuple(type_name_pair_to_rich_node[(node.type, node.name)] for node in link.items)
 
     type_name_pairs.add((max_linked_node.type, max_linked_node.name))
 
@@ -34,7 +34,7 @@ def get_max_linked_link(node: Node):
     return max_linked_link, links
 
 
-def encode_node(node: Node, link: Link = None, indent: int = 4, level: int = 0):
+def encode_node(node: Node, all_nodes: tuple[Node], link: Link = None, indent: int = 4, level: int = 0):
     indentation_first_line = ' ' * indent * level
 
     if link is None:
@@ -42,23 +42,26 @@ def encode_node(node: Node, link: Link = None, indent: int = 4, level: int = 0):
 
     # indentation = ' ' * indent * (level + 1)
 
-    return f'{indentation_first_line}{node.name}@{node.type} {link.name}' + ''.join(f'\n{encode([node], indent, level + 1)}' for node in link.items)
+    return f'{indentation_first_line}{node.name}@{node.type} {link.name}' + ''.join(f'\n{encode([node], all_nodes, indent, level + 1)}' for node in link.items)
 
 
-def encode(nodes: list[Node], indent: int = 4, level: int = 0):
-    node, nodes = get_max_linked_node(nodes)
+def encode(nodes: list[Node], all_nodes: tuple[Node] = None, indent: int = 4, level: int = 0):
+    if all_nodes is None:
+        all_nodes = tuple(nodes)
+
+    node, nodes = get_max_linked_node(nodes, all_nodes)
     link, links = get_max_linked_link(node)
 
     if link is None:
-        return encode_node(node, link, indent, level)
+        return encode_node(node, all_nodes, link, indent, level)
 
     if len(links) > 0:
-        raise ValueError('More than one link is not supported')
+        raise ValueError(f'More than one link is not supported: {links}')
 
-    if len(nodes) > 0:
-        raise ValueError('More than one node is not supported')
+    # if len(nodes) > 0:
+    #     raise ValueError(f'More than one node is not supported: {nodes}')
 
-    return encode_node(node, link, indent, level)
+    return encode_node(node, all_nodes, link, indent, level) + ('' if len(nodes) < 1 else '\n' + encode(nodes, all_nodes, indent, level))
 
 
 class TestDataReading(TestCase):
@@ -66,6 +69,40 @@ class TestDataReading(TestCase):
     def setUp(self):
         self.encoder = JSONEncoder()
         self.default_encoder = DefaultJSONEncoder()
+
+    def test_cold_file_generation_multiple_first_level_nodes(self):
+        factory = NodeFactory.from_types({'foo', 'bar'})
+
+        one = factory.make('one', 'foo')
+        two = factory.make('two', 'foo')
+
+        three = factory.make('three', 'bar')
+
+        four = factory.make('four', 'foo')
+        five = factory.make('five', 'bar')
+
+        one.push('qux', two)
+        one.push('qux', three)
+
+        two.push('qux', three)
+
+        four.push('quux', five)
+
+        nodes = [three, two, one, four, five]
+
+        self.assertEqual(
+            encode(nodes),
+            dedent(
+                """
+                one@foo qux
+                    two@foo qux
+                        three@bar
+                    three@bar
+                four@foo quux
+                    five@bar
+                """
+            ).strip()
+        )
 
     def test_cold_file_generation(self):
         factory = NodeFactory.from_types({'foo', 'bar'})
