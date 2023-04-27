@@ -88,7 +88,7 @@ class TestDataReading(TestCase):
 
         four.push('quux', five)
 
-        nodes = [three, two, one, four, five]
+        nodes = [five, four, three, two, one]
 
         self.assertEqual(
             encode(nodes),
