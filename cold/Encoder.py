@@ -99,7 +99,7 @@ class Encoder:
             return f'\n{self.encode_node(node, level = level + 1, prefix = prefix) if node in self.defined_nodes else self.encode([node], level + 1, prefix = prefix)}'
 
         return (
-            f'{indentation_first_line}{indented_prefix}{node.name}@{node.type} {link.name}' +
+            f'{indentation_first_line}{indented_prefix}{node.name}@{node.type}{SEP}{link.name}' +
             ''.join(encode_node_(node) for node in link.items) +
             ('' if links is None else ''.join(encode_node_(node, link) for link in links for node in link.items))
         )
