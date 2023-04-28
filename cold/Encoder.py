@@ -1,4 +1,4 @@
-from .util import Node, Link
+from .util import Node, Link, Spec
 from .util.collection import argmax
 
 from .NodeSet import NodeSet
@@ -28,7 +28,7 @@ class UndirectedLink:
 
 
 class Encoder:
-    def __init__(self, nodes: tuple[Node], indent: int = 4, directed: bool = True):
+    def __init__(self, nodes: tuple[Node], indent: int = 4, directed: bool = True, spec: Spec = None):
         self.nodes = NodeSet(nodes)
         self.defined_nodes = NodeSet()
 
@@ -38,6 +38,8 @@ class Encoder:
         self.undirected = not directed
 
         self.links = None if directed else LinkSet()
+
+        self.spec = spec
 
     def get_max_linked_node(self, nodes: list[Node]):
         max_linked_node = argmax(nodes, lambda node: 0 if node.links is None else sum(len(link.items) for link in node.links))
@@ -95,6 +97,9 @@ class Encoder:
                     return ''
                 else:
                     self.links.push(lhs = globalNode, rhs = node, link = globalLink if link is None else link)
+
+            if self.spec is not None:
+                self.spec.validate(globalNode, node, (globalLink if link is None else link).name)
 
             return f'\n{self.encode_node(node, level = level + 1, prefix = prefix) if node in self.defined_nodes else self.encode([node], level + 1, prefix = prefix)}'
 

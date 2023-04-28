@@ -6,6 +6,8 @@ from .ColdLineParser import ColdLineParser, Line
 from .NodeFactory import NodeFactory
 from .NodeRegistry import NodeRegistry
 
+from .Node import get_hash
+
 
 reserved_values = {t.value for t in Type}
 
@@ -14,8 +16,14 @@ INVERSE_LINK_SEPARATOR = '^'
 
 
 class Spec:
-    def __init__(self, path: str, directed: bool = True):
-        self.data = data = read(path)
+    def __init__(self, path: str = None, data: str = None, directed: bool = True):
+        assert (path is None and data is not None) or (path is not None and data is None), 'Exactly one of arguments "path", "data" must be passed for building a Spec instance'
+
+        if data is None:
+            self.data = data = read(path)
+        else:
+            self.data = data
+
         self.directed = directed
 
         sources = set(data.keys())
@@ -102,8 +110,8 @@ class Spec:
 
         # 2. Check preprocessing results against the spec
 
-        def compress(line: Line):
-            return (line.name, line.type)
+        # def compress(line: Line):
+        #     return (line.name, line.type)
 
         def make_triple(lhs: Line, rhs: Line):
             nonlocal inferred_allowed_link_types_list
@@ -112,11 +120,11 @@ class Spec:
                 inferred_allowed_link_types_list = True
 
                 if value_type == Type.STRING and value not in reserved_values and value in allowed_types:
-                    return (compress(lhs), value, compress(rhs))
+                    return (get_hash(lhs), value, get_hash(rhs))
                 if value_type == Type.INT and INT_TYPE in allowed_types:
-                    return (compress(lhs), int(value), compress(rhs))
+                    return (get_hash(lhs), int(value), get_hash(rhs))
                 if value_type == Type.FLOAT and FLOAT_TYPE in allowed_types:
-                    return (compress(lhs), float(value), compress(rhs))
+                    return (get_hash(lhs), float(value), get_hash(rhs))
 
         if (triple := make_triple(lhs = lhs, rhs = rhs)) is not None:
             return triple

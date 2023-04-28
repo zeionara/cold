@@ -19,7 +19,7 @@ class NodeRegistry:
         return object_with_the_same_name
 
     def push(self, triple: tuple, get_backward_link: callable = None):
-        ((lhs_name, lhs_type), link, (rhs_name, rhs_type)) = triple
+        ((lhs_type, lhs_name), link, (rhs_type, rhs_name)) = triple
 
         lhs = self.get_node(lhs_name, lhs_type)
         rhs = self.get_node(rhs_name, rhs_type)
