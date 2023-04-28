@@ -56,3 +56,7 @@ class Node:
 
     def clone_without_links(self):
         return type(self)(self.name)
+
+
+def get_hash(node: Node):
+    return (node.type, node.name)

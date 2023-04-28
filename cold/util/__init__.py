@@ -1,4 +1,4 @@
 from .Spec import Spec
 from .NodeFactory import NodeFactory
 from .JSONEncoder import JSONEncoder
-from .Node import Node, Link
+from .Node import Node, Link, get_hash as get_node_hash
