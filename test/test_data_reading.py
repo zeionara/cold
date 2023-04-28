@@ -36,21 +36,21 @@ class TestDataReading(TestCase):
 
         nodes = [five, four, three, two, one]
 
-        print(Encoder(nodes, directed = False).encode())
+        # print(Encoder(nodes, directed = False).encode())
 
-        # self.assertEqual(
-        #     Encoder(nodes, directed = False).encode(),
-        #     dedent(
-        #         """
-        #         one@foo qux
-        #             two@foo qux
-        #                 three@bar
-        #             three@bar
-        #             quux four@foo quuz
-        #                 five@bar
-        #         """
-        #     ).strip()
-        # )
+        self.assertEqual(
+            Encoder(nodes, directed = False).encode(),
+            dedent(
+                """
+                one@foo qux
+                    two@foo qux
+                        three@bar
+                    three@bar
+                    quux four@foo quuz
+                        five@bar
+                """
+            ).strip()
+        )
 
     def test_cold_file_generation_multiple_first_level_links_recursion_directed(self):
         factory = NodeFactory.from_types({'foo', 'bar'})

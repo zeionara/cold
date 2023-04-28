@@ -8,6 +8,25 @@ from .LinkSet import LinkSet
 SEP = ' '
 
 
+class UndirectedLink:
+    def __init__(self, node: Node, base: Link, links: LinkSet):
+        self.node = node
+        self.base = base
+        self.links = links
+
+    @property
+    def name(self):
+        return self.base.name
+
+    # @property
+    # def items(self):
+    #     return self.items
+
+    @property
+    def items(self):
+        return tuple(item for item in self.base.items if not self.links.contains(lhs = self.node, rhs = item, link = self.base))
+
+
 class Encoder:
     def __init__(self, nodes: tuple[Node], indent: int = 4, directed: bool = True):
         self.nodes = NodeSet(nodes)
@@ -35,8 +54,26 @@ class Encoder:
         if node.links is None:
             return None, None
 
-        max_linked_link = argmax(node.links, lambda link: len(link.items))
-        links = [link_ for link_ in node.links if link_ != max_linked_link]
+        if self.undirected:  # some links may have already appeared in a reversed representation
+            non_zero_links = []
+
+            for link in node.links:
+                undirected_link = UndirectedLink(node = node, base = link, links = self.links)
+                if len(undirected_link.items) > 0:
+                    non_zero_links.append(undirected_link)
+
+            node_links = non_zero_links
+        else:
+            node_links = node.links
+
+        # print(self.undirected)
+        # print(node_links)
+
+        max_linked_link = argmax(node_links, lambda link: len(link.items))
+        links = [link_ for link_ in node_links if link_ != max_linked_link]
+
+        if self.undirected:
+            return None if max_linked_link is None else max_linked_link.base, tuple(link.base for link in links)
 
         return max_linked_link, links
 
@@ -77,6 +114,8 @@ class Encoder:
 
         node, nodes = self.get_max_linked_node(nodes)
         link, links = self.get_max_linked_link(node)
+
+        # print(link, links)
 
         if link is None:
             return self.encode_node(node, level = level, prefix = prefix)
