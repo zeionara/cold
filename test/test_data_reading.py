@@ -13,6 +13,45 @@ class TestDataReading(TestCase):
         self.encoder = JSONEncoder()
         self.default_encoder = DefaultJSONEncoder()
 
+    def test_cold_file_generation_multiple_first_level_links_recursion_undirected(self):
+        factory = NodeFactory.from_types({'foo', 'bar'})
+
+        one = factory.make('one', 'foo')
+        two = factory.make('two', 'foo')
+
+        three = factory.make('three', 'bar')
+
+        four = factory.make('four', 'foo')
+        five = factory.make('five', 'bar')
+
+        one.push('qux', two)
+        one.push('qux', three)
+
+        two.push('qux', three)
+
+        one.push('quux', four)
+
+        four.push('quuz', five)
+        five.push('quuz', four)
+
+        nodes = [five, four, three, two, one]
+
+        print(Encoder(nodes, directed = False).encode())
+
+        # self.assertEqual(
+        #     Encoder(nodes, directed = False).encode(),
+        #     dedent(
+        #         """
+        #         one@foo qux
+        #             two@foo qux
+        #                 three@bar
+        #             three@bar
+        #             quux four@foo quuz
+        #                 five@bar
+        #         """
+        #     ).strip()
+        # )
+
     def test_cold_file_generation_multiple_first_level_links_recursion_directed(self):
         factory = NodeFactory.from_types({'foo', 'bar'})
 

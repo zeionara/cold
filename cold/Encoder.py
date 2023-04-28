@@ -2,16 +2,23 @@ from .util import Node, Link
 from .util.collection import argmax
 
 from .NodeSet import NodeSet
+from .LinkSet import LinkSet
 
 
 SEP = ' '
 
 
 class Encoder:
-    def __init__(self, nodes: tuple[Node], indent: int = 4):
+    def __init__(self, nodes: tuple[Node], indent: int = 4, directed: bool = True):
         self.nodes = NodeSet(nodes)
         self.defined_nodes = NodeSet()
+
         self.indent = indent
+
+        self.directed = directed
+        self.undirected = not directed
+
+        self.links = None if directed else LinkSet()
 
     def get_max_linked_node(self, nodes: list[Node]):
         max_linked_node = argmax(nodes, lambda node: 0 if node.links is None else sum(len(link.items) for link in node.links))
@@ -40,19 +47,24 @@ class Encoder:
         if link is None:
             return f'{indentation_first_line}{indented_prefix}{node.name}@{node.type}'
 
-        def encode_node_(node, prefix: str = None):
+        globalNode = node
+        globalLink = link
+
+        def encode_node_(node, link: Link = None):
+            prefix = None if link is None else link.name
+
+            if self.undirected:
+                if self.links.contains(lhs = globalNode, rhs = node, link = globalLink if link is None else link):
+                    return ''
+                else:
+                    self.links.push(lhs = globalNode, rhs = node, link = globalLink if link is None else link)
+
             return f'\n{self.encode_node(node, level = level + 1, prefix = prefix) if node in self.defined_nodes else self.encode([node], level + 1, prefix = prefix)}'
 
-        # if prefix is None:
-        #     return (
-        #         f'{indentation_first_line}{node.name}@{node.type} {link.name}' +
-        #         ''.join(f'\n{encode_node(node, all_nodes, indent = indent, level = level + 1) if node in defined_nodes else encode([node], all_nodes, defined_nodes, indent, level + 1)}' for node in link.items) +
-        #         ('' if links is None else ''.join(f'\n{encode_node(node, all_nodes, prefix = link.name, indent = indent, level = level + 1) if node in defined_nodes else encode([node], all_nodes, defined_nodes, indent, level + 1, link.name)}' for link in links for node in link.items if node not in defined_nodes))
-        #     )
         return (
             f'{indentation_first_line}{indented_prefix}{node.name}@{node.type} {link.name}' +
             ''.join(encode_node_(node) for node in link.items) +
-            ('' if links is None else ''.join(encode_node_(node, prefix = link.name) for link in links for node in link.items))
+            ('' if links is None else ''.join(encode_node_(node, link) for link in links for node in link.items))
         )
 
     def encode(self, nodes: list[Node] = None, level: int = 0, prefix: str = None):
