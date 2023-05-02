@@ -83,6 +83,8 @@ class Encoder:
         indentation_first_line = SEP * self.indent * level
         indented_prefix = "" if prefix is None else (prefix + SEP)
 
+        # print(node, link)
+
         if link is None:
             return f'{indentation_first_line}{indented_prefix}{node.name}@{node.type}'
 

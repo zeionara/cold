@@ -7,6 +7,88 @@ from cold import Encoder
 
 class TestDataEncoding(TestCase):
 
+    def test_cold_file_generation_multiple_node_mentions(self):
+        factory = NodeFactory.from_types({'foo', 'bar'})
+
+        one = factory.make('one', 'foo')
+        two = factory.make('two', 'foo')
+
+        three = factory.make('three', 'bar')
+
+        four = factory.make('four', 'foo')
+        five = factory.make('five', 'bar')
+
+        one.push('qux', two)
+        one.push('qux', three)
+
+        two.push('qux', three)
+
+        one.push('quux', four)
+
+        four.push('quuz', five)
+        five.push('quuz', two)
+
+        nodes = [five, four, three, two, one]
+
+        self.assertEqual(
+            Encoder(nodes).encode(),
+            dedent(
+                """
+                one@foo qux
+                    two@foo qux
+                        three@bar
+                    three@bar
+                    quux four@foo quuz
+                        five@bar quuz
+                            two@foo
+                """
+            ).strip()
+        )
+
+    def test_cold_file_generation_deep_node_mention(self):
+        factory = NodeFactory.from_types({'foo', 'bar'})
+
+        one = factory.make('one', 'foo')
+        two = factory.make('two', 'foo')
+
+        three = factory.make('three', 'bar')
+
+        four = factory.make('four', 'foo')
+        five = factory.make('five', 'bar')
+
+        six = factory.make('six', 'foo')
+        seven = factory.make('seven', 'foo')
+
+        one.push('qux', two)
+        one.push('qux', three)
+
+        two.push('qux', three)
+
+        one.push('quux', four)
+
+        four.push('quuz', five)
+        five.push('quuz', six)
+
+        six.push('qux', seven)
+
+        nodes = [seven, six, five, four, three, two, one]
+
+        self.assertEqual(
+            Encoder(nodes).encode(),
+            dedent(
+                """
+                one@foo qux
+                    two@foo qux
+                        three@bar
+                    three@bar
+                    quux four@foo quuz
+                        five@bar quuz
+                            six@foo qux
+                                seven@foo
+                """
+            ).strip()
+        )
+
     def test_graph_validation(self):
         factory = NodeFactory.from_types({'foo', 'bar'})
 
