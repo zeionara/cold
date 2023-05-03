@@ -81,6 +81,20 @@ class Attachment:
 
         self.voters = voters
 
+    def get_answer_id(self, text: str):
+        match self.type:
+            case AttachmentType.POLL:
+                available_answers = []
+                for answer in self.answers:
+                    if answer.text == text:
+                        return answer.id
+                    else:
+                        available_answers.append(answer.text)
+
+                raise ValueError(f'Cannot obtain an id for provided text "{text}"; available values are {", ".join(available_answers)}')
+            case _:
+                raise ValueError('Cannot get answer id for non-pull attachment')
+
 
 class Post:
     def __init__(self, content: dict):
@@ -116,9 +130,15 @@ class PostsCorpusIterator:
 
 
 class PostsCorpus:
-    def __init__(self, path: str):
-        with open(path, encoding = 'utf-8', mode = 'r') as file:
-            self.content = content = load(file)
+    def __init__(self, path: str = None, content: dict = None):
+        assert path is None and content is not None or path is not None and content is None
+
+        if content is None:
+            with open(path, encoding = 'utf-8', mode = 'r') as file:
+                self.content = content = load(file)
+                self.posts = tuple(Post(content = post) for post in content['posts'])
+        else:
+            self.content = content
             self.posts = tuple(Post(content = post) for post in content['posts'])
 
     def __iter__(self):
