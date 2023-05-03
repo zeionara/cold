@@ -1,7 +1,9 @@
-from json import dump, dumps
+from json import dump, dumps, load
 from click import group, argument, option
 
 from .util import Spec, JSONEncoder, VkApi, MAX_BATCH_SIZE
+from .PostsCorpus import PostsCorpus
+from .VotersFrequency import VotersFrequency
 
 from os import environ as env
 
@@ -28,13 +30,34 @@ def probe(path: str, spec: str, undirected: bool):
 @argument('community', type = str)
 @option('--count', '-c', type = int, default = None)
 @option('--batch-size', '-b', type = int, default = MAX_BATCH_SIZE)
-def collect(community: str, count: int, batch_size: int):
+@option('--path', '-p', type = str, default = 'assets/some-posts.json')
+def collect(community: str, count: int, batch_size: int, path: str):
     print(community)
 
     vk = VkApi(api_key = env.get('COLD_VK_API_KEY'))
 
-    with open('assets/some-posts.json', encoding = 'utf-8', mode = 'w') as file:
+    with open(path, encoding = 'utf-8', mode = 'w') as file:
         dump({'posts': vk.get_posts(community, count = count, batch_size = batch_size)}, file, indent = 2, ensure_ascii = False)
+
+
+@main.command()
+@argument('path', type = str, default = 'assets/some-posts.json')
+def process(path: str):
+    vk = VkApi(api_key = env.get('COLD_VK_API_KEY'))
+    frequency = VotersFrequency()
+
+    for post in PostsCorpus(path = path):
+        polls = post.polls
+
+        if len(polls) > 0:
+            first_poll = polls[0]
+
+            try:
+                first_poll.add_voters(vk.get_voters(first_poll), frequency, name = post.text.split('\n')[0])
+            except ValueError:
+                pass
+
+    print(frequency.df)
 
 
 if __name__ == '__main__':

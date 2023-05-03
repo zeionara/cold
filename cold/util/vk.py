@@ -1,6 +1,8 @@
 from tqdm import tqdm
 from requests import post
 
+from ..PostsCorpus import Attachment, AttachmentType
+
 MAX_BATCH_SIZE = 100
 
 
@@ -56,3 +58,22 @@ class VkApi:
             pbar.update(n_items)
 
         return all_items
+
+    def get_voters(self, poll: Attachment):
+        assert poll.type == AttachmentType.POLL, 'Cannot get voters for non-poll attachment'
+
+        response = post(
+            'https://api.vk.com/method/polls.getVoters', data = {
+                'access_token': self.api_key,
+                'poll_id': poll.id,
+                'answer_ids': ','.join(str(answer.id) for answer in poll.answers),
+                'v': '5.131'
+            },
+            timeout = self.timeout
+        )
+
+        match response.status_code:
+            case 200:
+                return response.json()
+            case value:
+                raise ValueError(f'Inacceptable response status: {value}')
