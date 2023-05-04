@@ -49,6 +49,7 @@ dependencies:
   - toml=0.10.2=pyhd3eb1b0_0
   - tomli=2.0.1=py310h06a4308_0
   - tomlkit=0.11.1=py310h06a4308_0
+  - tqdm=4.65.0=py310h2f386ee_0
   - typing-extensions=4.4.0=py310h06a4308_0
   - typing_extensions=4.4.0=py310h06a4308_0
   - tzdata=2023c=h04d1e81_0
