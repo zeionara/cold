@@ -81,15 +81,18 @@ class Attachment:
 
         self.voters = voters
 
-    def get_answer_id(self, text: str):
+    def get_answer_id(self, texts: tuple[str]):
         match self.type:
             case AttachmentType.POLL:
                 available_answers = []
-                for answer in self.answers:
-                    if answer.text == text:
-                        return answer.id
-                    else:
-                        available_answers.append(answer.text)
+                first_text = True
+                for text in texts:
+                    for answer in self.answers:
+                        if answer.text == text:
+                            return answer.id
+                        elif first_text:
+                            available_answers.append(answer.text)
+                    first_text = False
 
                 raise ValueError(f'Cannot obtain an id for provided text "{text}"; available values are {", ".join(available_answers)}')
             case _:

@@ -4,6 +4,7 @@ from requests import post
 from ..PostsCorpus import Attachment, AttachmentType
 
 MAX_BATCH_SIZE = 100
+VERSION = '5.131'
 
 
 class VkApi:
@@ -19,7 +20,7 @@ class VkApi:
                 'count': count,
                 'offset': offset,
                 'filter': 'owner',
-                'v': '5.131'
+                'v': VERSION
             },
             timeout = self.timeout
         )
@@ -67,7 +68,7 @@ class VkApi:
                 'access_token': self.api_key,
                 'poll_id': poll.id,
                 'answer_ids': ','.join(str(answer.id) for answer in poll.answers),
-                'v': '5.131'
+                'v': VERSION
             },
             timeout = self.timeout
         )
@@ -75,5 +76,31 @@ class VkApi:
         match response.status_code:
             case 200:
                 return response.json()
+            case value:
+                raise ValueError(f'Inacceptable response status: {value}')
+
+    def add_vote(self, poll: Attachment, answers: tuple[str]):
+        assert poll.type == AttachmentType.POLL, 'Cannot get voters for non-poll attachment'
+
+        response = post(
+            'https://api.vk.com/method/polls.addVote', data = {
+                'access_token': self.api_key,
+                'poll_id': poll.id,
+                'answer_ids': poll.get_answer_id(texts = answers),
+                'v': VERSION
+                # 'captcha_sid': 841548385301,
+                # 'captcha_key': 'vqzak'
+            },
+            timeout = self.timeout
+        )
+
+        match response.status_code:
+            case 200:
+                code = (body := response.json()).get('response')
+
+                if code is None:
+                    raise ValueError(f'Inacceptable response body: {body}')
+
+                return code == 1
             case value:
                 raise ValueError(f'Inacceptable response status: {value}')

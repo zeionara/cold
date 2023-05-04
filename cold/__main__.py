@@ -1,4 +1,5 @@
-from json import dump, dumps, load
+from time import sleep
+from json import dump, dumps
 from click import group, argument, option
 
 from .util import Spec, JSONEncoder, VkApi, MAX_BATCH_SIZE
@@ -37,8 +38,8 @@ def collect(community: str, count: int, batch_size: int, path: str):
     vk = VkApi(api_key = env.get('COLD_VK_API_KEY'))
     posts = {'posts': vk.get_posts(community, count = count, batch_size = batch_size)}
 
-    # with open(path, encoding = 'utf-8', mode = 'w') as file:
-    #     dump({'posts': vk.get_posts(community, count = count, batch_size = batch_size)}, file, indent = 2, ensure_ascii = False)
+    with open(path, encoding = 'utf-8', mode = 'w') as file:
+        dump(posts, file, indent = 2, ensure_ascii = False)
 
     frequency = VotersFrequency()
 
@@ -58,7 +59,8 @@ def collect(community: str, count: int, batch_size: int, path: str):
 
 @main.command()
 @argument('path', type = str, default = 'assets/some-posts.json')
-def process(path: str):
+@option('--delay', '-d', type = float, default = 2.0)  # at max there may be 3 requests per second
+def process(path: str, delay: float):
     vk = VkApi(api_key = env.get('COLD_VK_API_KEY'))
     frequency = VotersFrequency()
 
@@ -68,17 +70,31 @@ def process(path: str):
         if len(polls) > 0:
             first_poll = polls[0]
 
-            print(first_poll.id)
-            print(first_poll.get_answer_id('Не смотрел(-а)'))
+            # print(first_poll.id)
+            # print(first_poll.get_answer_id('Не смотрел(-а)'))
+
+            name = post.text.split('\n')[0]
+
+            if vk.add_vote(first_poll, answers = ('Не смотрел(-а)', 'Результат', 'не смотрел(а)', 'Не смотрел(а)', 'Не сомтрел(а)', '+')):
+                print(f'Vote accepted for {name}')
+            else:
+                print(f'Vote not accepted for {name}')
+
+            # return
+
+            sleep(delay)
 
             try:
-                first_poll.add_voters(vk.get_voters(first_poll), frequency, name = post.text.split('\n')[0])
+                first_poll.add_voters(vk.get_voters(first_poll), frequency, name = name)
             except ValueError:
                 pass
 
-            return
+            sleep(delay)
 
-    print(frequency.df)
+    df = frequency.df
+    current_voter_id = int(env.get('COLD_USER_ID'))
+
+    print(df[df['user'] != current_voter_id].reset_index(drop = True))
 
 
 if __name__ == '__main__':
