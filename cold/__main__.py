@@ -1,6 +1,8 @@
 from time import sleep
 from json import dump, dumps
+
 from click import group, argument, option
+from tqdm import tqdm
 
 from .util import Spec, JSONEncoder, VkApi, MAX_BATCH_SIZE
 from .PostsCorpus import PostsCorpus
@@ -61,11 +63,16 @@ def collect(community: str, count: int, batch_size: int, path: str):
 @argument('path', type = str, default = 'assets/some-posts.json')
 @option('--delay', '-d', type = float, default = 1 / 3)  # at max there may be 3 requests per second
 @option('--output', '-o', type = str, default = 'assets/some-posts.tsv')
-def process(path: str, delay: float, output: str):
+@option('--verbose', '-v', is_flag = True)
+def process(path: str, delay: float, output: str, verbose: bool):
     vk = VkApi(api_key = env.get('COLD_VK_API_KEY'))
     frequency = VotersFrequency()
 
-    for post in PostsCorpus(path = path):
+    corpus = PostsCorpus(path = path)
+    # print(corpus.length)
+    pbar = tqdm(total = corpus.length)
+
+    for post in corpus:
         polls = post.polls
 
         if len(polls) > 0:
@@ -76,10 +83,13 @@ def process(path: str, delay: float, output: str):
 
             name = post.text.split('\n')[0].replace('на #lm', '').strip().replace('"', "'")
 
-            if vk.add_vote(first_poll, answers = ('Не смотрел(-а)', 'Результат', 'не смотрел(а)', 'Не смотрел(а)', 'Не сомтрел(а)', '+')):
-                print(f'Vote accepted for {name}')
-            else:
-                print(f'Vote not accepted for {name}')
+            vote_accepted = vk.add_vote(first_poll, answers = ('Не смотрел(-а)', 'Результат', 'не смотрел(а)', 'Не смотрел(а)', 'Не сомтрел(а)', '+'))
+
+            if verbose:
+                if vote_accepted:
+                    print(f'Vote accepted for {name}')
+                else:
+                    print(f'Vote not accepted for {name}')
 
             # return
 
@@ -92,12 +102,15 @@ def process(path: str, delay: float, output: str):
 
             sleep(delay)
 
+        pbar.update(1)
+
     df = frequency.df
     current_voter_id = int(env.get('COLD_USER_ID'))
 
     df_transformed = df[df['user'] != current_voter_id].reset_index(drop = True)
 
-    print(df_transformed)
+    if verbose:
+        print(df_transformed)
 
     df_transformed.to_csv(output, sep = '\t')
 

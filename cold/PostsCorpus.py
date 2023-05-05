@@ -146,3 +146,7 @@ class PostsCorpus:
 
     def __iter__(self):
         return PostsCorpusIterator(corpus = self)
+
+    @property
+    def length(self):
+        return len(self.posts)
