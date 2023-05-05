@@ -2,6 +2,7 @@ from tqdm import tqdm
 from requests import post
 
 from ..PostsCorpus import Attachment, AttachmentType
+from .captcha import try_raise_captcha_error, try_add_captcha_params, handle_captcha
 
 MAX_BATCH_SIZE = 100
 VERSION = '5.131'
@@ -12,22 +13,25 @@ class VkApi:
         self.api_key = api_key
         self.timeout = timeout
 
-    def get_posts_(self, domain: str, count: int, offset: int) -> dict:
+    @handle_captcha
+    def get_posts_(self, domain: str, count: int, offset: int, captcha_sid: int = None, captcha_key: str = None) -> dict:
         response = post(
-            'https://api.vk.com/method/wall.get', data = {
+            'https://api.vk.com/method/wall.get', data = try_add_captcha_params({
                 'access_token': self.api_key,
                 'domain': domain,
                 'count': count,
                 'offset': offset,
                 'filter': 'owner',
                 'v': VERSION
-            },
+            }, captcha_sid, captcha_key),
             timeout = self.timeout
         )
 
         match response.status_code:
             case 200:
-                return response.json()
+                try_raise_captcha_error(body := response.json())
+
+                return body
             case value:
                 raise ValueError(f'Inacceptable response status: {value}')
 
@@ -60,37 +64,40 @@ class VkApi:
 
         return all_items
 
-    def get_voters(self, poll: Attachment):
+    @handle_captcha
+    def get_voters(self, poll: Attachment, captcha_sid: int = None, captcha_key: str = None):
         assert poll.type == AttachmentType.POLL, 'Cannot get voters for non-poll attachment'
 
         response = post(
-            'https://api.vk.com/method/polls.getVoters', data = {
+            'https://api.vk.com/method/polls.getVoters', data = try_add_captcha_params({
                 'access_token': self.api_key,
                 'poll_id': poll.id,
                 'answer_ids': ','.join(str(answer.id) for answer in poll.answers),
                 'v': VERSION
-            },
+            }, captcha_sid, captcha_key),
             timeout = self.timeout
         )
 
         match response.status_code:
             case 200:
-                return response.json()
+                try_raise_captcha_error(body := response.json())
+
+                return body
             case value:
                 raise ValueError(f'Inacceptable response status: {value}')
 
-    def add_vote(self, poll: Attachment, answers: tuple[str]):
+    @handle_captcha
+    def add_vote(self, poll: Attachment, answers: tuple[str], captcha_sid: int = None, captcha_key: str = None):
         assert poll.type == AttachmentType.POLL, 'Cannot get voters for non-poll attachment'
 
         response = post(
-            'https://api.vk.com/method/polls.addVote', data = {
+            'https://api.vk.com/method/polls.addVote',
+            data = try_add_captcha_params({
                 'access_token': self.api_key,
                 'poll_id': poll.id,
                 'answer_ids': poll.get_answer_id(texts = answers),
                 'v': VERSION
-                # 'captcha_sid': 841548385301,
-                # 'captcha_key': 'vqzak'
-            },
+            }, captcha_sid, captcha_key),
             timeout = self.timeout
         )
 
@@ -99,6 +106,8 @@ class VkApi:
                 code = (body := response.json()).get('response')
 
                 if code is None:
+                    try_raise_captcha_error(body)
+
                     raise ValueError(f'Inacceptable response body: {body}')
 
                 return code == 1
