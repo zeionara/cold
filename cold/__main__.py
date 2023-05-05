@@ -1,3 +1,5 @@
+# from random import random
+
 from time import sleep
 from json import dump, dumps
 
@@ -86,14 +88,17 @@ def process(path: str, delay: float, output: str, verbose: bool):
             vote_accepted = vk.add_vote(first_poll, answers = ('Не смотрел(-а)', 'Результат', 'не смотрел(а)', 'Не смотрел(а)', 'Не сомтрел(а)', '+'))
 
             if verbose:
-                if vote_accepted:
+                if vote_accepted is True:
                     print(f'Vote accepted for {name}')
-                else:
+                elif vote_accepted is False:
                     print(f'Vote not accepted for {name}')
+                elif vote_accepted is None:
+                    print(f'Unexpected error, skipping poll {name} (id = {first_poll.id})')
 
             # return
 
             sleep(delay)
+            # sleep(0.3 + random() * delay)
 
             try:
                 first_poll.add_voters(vk.get_voters(first_poll), frequency, name = name)
@@ -101,6 +106,7 @@ def process(path: str, delay: float, output: str, verbose: bool):
                 pass
 
             sleep(delay)
+            # sleep(0.3 + random() * delay)
 
         pbar.update(1)
 

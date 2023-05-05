@@ -12,6 +12,8 @@ class AttachmentType(Enum):
     POLL = 'poll'
     AUDIO = 'audio'
     LINK = 'link'
+    DOC = 'doc'
+    ALBUM = 'album'
 
 
 class VotersAnswer:

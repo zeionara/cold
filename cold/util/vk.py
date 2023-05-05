@@ -7,6 +7,8 @@ from .captcha import try_raise_captcha_error, try_add_captcha_params, handle_cap
 MAX_BATCH_SIZE = 100
 VERSION = '5.131'
 
+TOO_MANY_VOTINGS_ERROR_CODE = 250
+
 
 class VkApi:
     def __init__(self, api_key: str, timeout: int = 60):
@@ -107,6 +109,9 @@ class VkApi:
 
                 if code is None:
                     try_raise_captcha_error(body)
+
+                    if (error := body.get('error')) is not None and error.get('error_code') == TOO_MANY_VOTINGS_ERROR_CODE:
+                        return None
 
                     raise ValueError(f'Inacceptable response body: {body}')
 
