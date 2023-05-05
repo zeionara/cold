@@ -59,8 +59,9 @@ def collect(community: str, count: int, batch_size: int, path: str):
 
 @main.command()
 @argument('path', type = str, default = 'assets/some-posts.json')
-@option('--delay', '-d', type = float, default = 2.0)  # at max there may be 3 requests per second
-def process(path: str, delay: float):
+@option('--delay', '-d', type = float, default = 1 / 3)  # at max there may be 3 requests per second
+@option('--output', '-o', type = str, default = 'assets/some-posts.tsv')
+def process(path: str, delay: float, output: str):
     vk = VkApi(api_key = env.get('COLD_VK_API_KEY'))
     frequency = VotersFrequency()
 
@@ -73,7 +74,7 @@ def process(path: str, delay: float):
             # print(first_poll.id)
             # print(first_poll.get_answer_id('Не смотрел(-а)'))
 
-            name = post.text.split('\n')[0]
+            name = post.text.split('\n')[0].replace('на #lm', '').strip().replace('"', "'")
 
             if vk.add_vote(first_poll, answers = ('Не смотрел(-а)', 'Результат', 'не смотрел(а)', 'Не смотрел(а)', 'Не сомтрел(а)', '+')):
                 print(f'Vote accepted for {name}')
@@ -94,7 +95,11 @@ def process(path: str, delay: float):
     df = frequency.df
     current_voter_id = int(env.get('COLD_USER_ID'))
 
-    print(df[df['user'] != current_voter_id].reset_index(drop = True))
+    df_transformed = df[df['user'] != current_voter_id].reset_index(drop = True)
+
+    print(df_transformed)
+
+    df_transformed.to_csv(output, sep = '\t')
 
 
 if __name__ == '__main__':

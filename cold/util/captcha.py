@@ -1,4 +1,9 @@
+from webbrowser import get as browser
+
+
 CAPTCHA_ERROR_CODE = 14
+
+chrome = browser('google-chrome')
 
 
 class CaptchaNeeded(Exception):
@@ -15,6 +20,7 @@ def handle_captcha(send_request):
             try:
                 return send_request(*args, **kwargs)
             except CaptchaNeeded as error:
+                chrome.open_new_tab(error.image)
                 key = input(f'Captcha needed: {error.image}\n')
 
                 kwargs['captcha_sid'] = error.sid
