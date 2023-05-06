@@ -1,5 +1,7 @@
+from functools import wraps
 from tqdm import tqdm
 from requests import post
+from time import sleep
 
 from ..PostsCorpus import Attachment, AttachmentType
 from .captcha import try_raise_captcha_error, try_add_captcha_params, handle_captcha
@@ -8,6 +10,25 @@ MAX_BATCH_SIZE = 100
 VERSION = '5.131'
 
 TOO_MANY_VOTINGS_ERROR_CODE = 250
+TOO_MANY_REQUESTS_PER_SECOND_ERROR_CODE = 6
+
+MIN_REQUEST_TIME_INTERVAL = 1 / 3  # at max there may be 3 requests per second
+
+
+class TooManyRequestsException(Exception):
+    pass
+
+
+def handle_too_many_requests_per_second(send_request):
+    @wraps(send_request)
+    def handle_too_many_requests_per_second_(*args, **kwargs):
+        while True:
+            try:
+                return send_request(*args, **kwargs)
+            except TooManyRequestsException:
+                sleep(MIN_REQUEST_TIME_INTERVAL)
+
+    return handle_too_many_requests_per_second_
 
 
 class VkApi:
@@ -88,8 +109,10 @@ class VkApi:
             case value:
                 raise ValueError(f'Inacceptable response status: {value}')
 
+    @handle_too_many_requests_per_second
     @handle_captcha
     def add_vote(self, poll: Attachment, answers: tuple[str], captcha_sid: int = None, captcha_key: str = None):
+        global TOO_MANY_REQUESTS_PER_SECOND_ERROR_CODE, TOO_MANY_VOTINGS_ERROR_CODE
         assert poll.type == AttachmentType.POLL, 'Cannot get voters for non-poll attachment'
 
         response = post(
@@ -110,8 +133,11 @@ class VkApi:
                 if code is None:
                     try_raise_captcha_error(body)
 
-                    if (error := body.get('error')) is not None and error.get('error_code') == TOO_MANY_VOTINGS_ERROR_CODE:
-                        return None
+                    if (error := body.get('error')) is not None:
+                        if (code := error.get('error_code')) == TOO_MANY_REQUESTS_PER_SECOND_ERROR_CODE:
+                            raise TooManyRequestsException('There are too many requests per second')
+                        elif code == TOO_MANY_VOTINGS_ERROR_CODE:
+                            return body
 
                     raise ValueError(f'Inacceptable response body: {body}')
 

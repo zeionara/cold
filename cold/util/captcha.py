@@ -1,3 +1,4 @@
+from functools import wraps
 from webbrowser import get as browser
 
 
@@ -15,6 +16,7 @@ class CaptchaNeeded(Exception):
 
 
 def handle_captcha(send_request):
+    @wraps(send_request)
     def handle_captcha_(*args, **kwargs):
         while True:
             try:

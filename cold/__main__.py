@@ -6,7 +6,7 @@ from json import dump, dumps
 from click import group, argument, option
 from tqdm import tqdm
 
-from .util import Spec, JSONEncoder, VkApi, MAX_BATCH_SIZE
+from .util import Spec, JSONEncoder, VkApi, MAX_BATCH_SIZE, MIN_REQUEST_TIME_INTERVAL
 from .PostsCorpus import PostsCorpus
 from .VotersFrequency import VotersFrequency
 
@@ -63,10 +63,11 @@ def collect(community: str, count: int, batch_size: int, path: str):
 
 @main.command()
 @argument('path', type = str, default = 'assets/some-posts.json')
-@option('--delay', '-d', type = float, default = 1 / 3)  # at max there may be 3 requests per second
+@option('--delay', '-d', type = float, default = MIN_REQUEST_TIME_INTERVAL)
 @option('--output', '-o', type = str, default = 'assets/some-posts.tsv')
 @option('--verbose', '-v', is_flag = True)
-def process(path: str, delay: float, output: str, verbose: bool):
+@option('--checkpoint-frequency', '-cf', type = int, default = 1000)
+def process(path: str, delay: float, output: str, verbose: bool, checkpoint_frequency: int):
     vk = VkApi(api_key = env.get('COLD_VK_API_KEY'))
     frequency = VotersFrequency()
 
@@ -74,7 +75,18 @@ def process(path: str, delay: float, output: str, verbose: bool):
     # print(corpus.length)
     pbar = tqdm(total = corpus.length)
 
-    for post in corpus:
+    current_voter_id = int(env.get('COLD_USER_ID'))
+
+    def checkpoint(verbose: bool = False):
+        df = frequency.df
+        df_transformed = df[df['user'] != current_voter_id].reset_index(drop = True)
+
+        if verbose:
+            print(df_transformed)
+
+        df_transformed.to_csv(output, sep = '\t')
+
+    for (i, post) in enumerate(corpus, start = 1):
         polls = post.polls
 
         if len(polls) > 0:
@@ -92,33 +104,30 @@ def process(path: str, delay: float, output: str, verbose: bool):
                     print(f'Vote accepted for {name}')
                 elif vote_accepted is False:
                     print(f'Vote not accepted for {name}')
-                elif vote_accepted is None:
-                    print(f'Unexpected error, skipping poll {name} (id = {first_poll.id})')
+                else:
+                    print(f'Unexpected error, skipping poll {name} (id = {first_poll.id}), body = {vote_accepted}')
 
             # return
 
-            sleep(delay)
+            # sleep(delay)
             # sleep(0.3 + random() * delay)
 
+            sleep(MIN_REQUEST_TIME_INTERVAL)
             try:
                 first_poll.add_voters(vk.get_voters(first_poll), frequency, name = name)
-            except ValueError:
-                pass
+            except ValueError as e:
+                if verbose:
+                    print(e)
 
-            sleep(delay)
+            # sleep(delay)
             # sleep(0.3 + random() * delay)
 
         pbar.update(1)
 
-    df = frequency.df
-    current_voter_id = int(env.get('COLD_USER_ID'))
+        if i % checkpoint_frequency == 0:
+            checkpoint(verbose = False)
 
-    df_transformed = df[df['user'] != current_voter_id].reset_index(drop = True)
-
-    if verbose:
-        print(df_transformed)
-
-    df_transformed.to_csv(output, sep = '\t')
+    checkpoint(verbose = verbose)
 
 
 if __name__ == '__main__':
