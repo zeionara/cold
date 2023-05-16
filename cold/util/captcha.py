@@ -15,20 +15,29 @@ class CaptchaNeeded(Exception):
         self.image = image
 
 
-def handle_captcha(send_request):
-    @wraps(send_request)
-    def handle_captcha_(*args, **kwargs):
-        while True:
-            try:
-                return send_request(*args, **kwargs)
-            except CaptchaNeeded as error:
-                chrome.open_new_tab(error.image)
-                key = input(f'Captcha needed: {error.image}\n')
+def type_key(url: str):
+    chrome.open_new_tab(url)
+    return input(f'Captcha needed: {url}\n')
 
-                kwargs['captcha_sid'] = error.sid
-                kwargs['captcha_key'] = key
 
-                return handle_captcha_(*args, **kwargs)
+def get_key_from_external_service(url: str):
+    raise NotImplementedError(f'External service for captcha decoding is not configured: {url}')
+
+
+def handle_captcha(get_key: callable = type_key):
+    def handle_captcha_(send_request):
+        @wraps(send_request)
+        def handle_captcha__(*args, **kwargs):
+            while True:
+                try:
+                    return send_request(*args, **kwargs)
+                except CaptchaNeeded as error:
+                    kwargs['captcha_sid'] = error.sid
+                    kwargs['captcha_key'] = get_key(error.image)
+
+                    return handle_captcha__(*args, **kwargs)
+
+        return handle_captcha__
 
     return handle_captcha_
 
