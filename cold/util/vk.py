@@ -110,7 +110,7 @@ class VkApi:
                 raise ValueError(f'Inacceptable response status: {value}')
 
     @handle_too_many_requests_per_second
-    @handle_captcha(get_key = get_key_from_external_service)
+    @handle_captcha()
     def add_vote(self, poll: Attachment, answers: tuple[str], captcha_sid: int = None, captcha_key: str = None):
         global TOO_MANY_REQUESTS_PER_SECOND_ERROR_CODE, TOO_MANY_VOTINGS_ERROR_CODE
         assert poll.type == AttachmentType.POLL, 'Cannot get voters for non-poll attachment'
