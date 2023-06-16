@@ -4,29 +4,42 @@ from requests import post
 from time import sleep
 
 from ..PostsCorpus import Attachment, AttachmentType
-from .captcha import try_raise_captcha_error, try_add_captcha_params, handle_captcha, get_key_from_external_service
+from .captcha import try_raise_captcha_error, try_add_captcha_params, handle_captcha, get_key_from_external_service, get_key_using_model
 
 MAX_BATCH_SIZE = 100
 VERSION = '5.131'
 
 TOO_MANY_VOTINGS_ERROR_CODE = 250
+
 TOO_MANY_REQUESTS_PER_SECOND_ERROR_CODE = 6
+FLOOD_CONTROL_ERROR_CODE = 9
 
 MIN_REQUEST_TIME_INTERVAL = 1 / 3  # at max there may be 3 requests per second
+MAX_REQUEST_TIME_INTERVAL = 1
+TIME_INTERVAL_MULTIPLIER = 2
 
 
 class TooManyRequestsException(Exception):
     pass
 
 
+class FloodControlException(Exception):
+    pass
+
+
 def handle_too_many_requests_per_second(send_request):
     @wraps(send_request)
     def handle_too_many_requests_per_second_(*args, **kwargs):
+        sleep_interval = MIN_REQUEST_TIME_INTERVAL
+
         while True:
             try:
                 return send_request(*args, **kwargs)
-            except TooManyRequestsException:
-                sleep(MIN_REQUEST_TIME_INTERVAL)
+            except (TooManyRequestsException, FloodControlException):
+                sleep(sleep_interval)
+
+            if sleep_interval < MAX_REQUEST_TIME_INTERVAL:
+                sleep_interval *= TIME_INTERVAL_MULTIPLIER
 
     return handle_too_many_requests_per_second_
 
@@ -36,7 +49,7 @@ class VkApi:
         self.api_key = api_key
         self.timeout = timeout
 
-    @handle_captcha()
+    @handle_captcha(get_key = get_key_using_model)
     def get_posts_(self, domain: str, count: int, offset: int, captcha_sid: int = None, captcha_key: str = None) -> dict:
         response = post(
             'https://api.vk.com/method/wall.get', data = try_add_captcha_params({
@@ -87,7 +100,7 @@ class VkApi:
 
         return all_items
 
-    @handle_captcha()
+    @handle_captcha(get_key = get_key_using_model)
     def get_voters(self, poll: Attachment, captcha_sid: int = None, captcha_key: str = None):
         assert poll.type == AttachmentType.POLL, 'Cannot get voters for non-poll attachment'
 
@@ -110,7 +123,7 @@ class VkApi:
                 raise ValueError(f'Inacceptable response status: {value}')
 
     @handle_too_many_requests_per_second
-    @handle_captcha()
+    @handle_captcha(get_key = get_key_using_model)
     def add_vote(self, poll: Attachment, answers: tuple[str], captcha_sid: int = None, captcha_key: str = None):
         global TOO_MANY_REQUESTS_PER_SECOND_ERROR_CODE, TOO_MANY_VOTINGS_ERROR_CODE
         assert poll.type == AttachmentType.POLL, 'Cannot get voters for non-poll attachment'
@@ -136,6 +149,8 @@ class VkApi:
                     if (error := body.get('error')) is not None:
                         if (code := error.get('error_code')) == TOO_MANY_REQUESTS_PER_SECOND_ERROR_CODE:
                             raise TooManyRequestsException('There are too many requests per second')
+                        elif code == FLOOD_CONTROL_ERROR_CODE:
+                            raise FloodControlException('Flood control')
                         elif code == TOO_MANY_VOTINGS_ERROR_CODE:
                             return body
 

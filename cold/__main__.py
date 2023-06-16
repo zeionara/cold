@@ -6,7 +6,9 @@ from json import dump, dumps
 from click import group, argument, option
 from tqdm import tqdm
 
-from .util import Spec, JSONEncoder, VkApi, MAX_BATCH_SIZE, MIN_REQUEST_TIME_INTERVAL
+import vk_captchasolver as vc
+
+from .util import Spec, JSONEncoder, VkApi, MAX_BATCH_SIZE, MIN_REQUEST_TIME_INTERVAL, Captcha
 from .PostsCorpus import PostsCorpus
 from .VotersFrequency import VotersFrequency
 
@@ -59,6 +61,18 @@ def collect(community: str, count: int, batch_size: int, path: str):
                 pass
 
     print(frequency.df)
+
+
+@main.command()
+@argument('sid', type = int, required = False)
+@option('-p', '--path', type = str)
+@option('-u', '--url', type = str)
+@option('-s', type = int, default = 1)
+def solve(sid: int, s: int, url: str, path: str):
+    if url is None:
+        print(vc.solve(sid = sid, s = s) if path is None else Captcha(path = path).text)
+    else:
+        print(Captcha(url = url).text)
 
 
 @main.command()
