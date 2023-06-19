@@ -81,9 +81,10 @@ def solve(sid: int, s: int, url: str, path: str):
 @option('--output', '-o', type = str, default = 'assets/some-posts.tsv')
 @option('--verbose', '-v', is_flag = True)
 @option('--checkpoint-frequency', '-cf', type = int, default = 1000)
-def process(path: str, delay: float, output: str, verbose: bool, checkpoint_frequency: int):
+@option('--cached', '-c', is_flag = True)
+def process(path: str, delay: float, output: str, verbose: bool, checkpoint_frequency: int, cached: bool):
     vk = VkApi(api_key = env.get('COLD_VK_API_KEY'))
-    frequency = VotersFrequency()
+    frequency = VotersFrequency(path = output if cached else None)
 
     corpus = PostsCorpus(path = path)
     # print(corpus.length)
@@ -100,7 +101,8 @@ def process(path: str, delay: float, output: str, verbose: bool, checkpoint_freq
 
         df_transformed.to_csv(output, sep = '\t')
 
-    for (i, post) in enumerate(corpus, start = 1):
+    i = 1
+    for post in corpus:
         polls = post.polls
 
         if len(polls) > 0:
@@ -110,6 +112,11 @@ def process(path: str, delay: float, output: str, verbose: bool, checkpoint_freq
             # print(first_poll.get_answer_id('Не смотрел(-а)'))
 
             name = post.text.split('\n')[0].replace('на #lm', '').strip().replace('"', "'")
+
+            if frequency.is_cached(poll = name):
+                print(f'Skipping poll {name} because it is cached')
+                pbar.update(1)
+                continue
 
             vote_accepted = vk.add_vote(first_poll, answers = ('Не смотрел(-а)', 'Результат', 'не смотрел(а)', 'Не смотрел(а)', 'Не сомтрел(а)', '+'))
 
@@ -123,17 +130,19 @@ def process(path: str, delay: float, output: str, verbose: bool, checkpoint_freq
 
             # return
 
-            # sleep(delay)
+            sleep(delay)
             # sleep(0.3 + random() * delay)
 
-            sleep(MIN_REQUEST_TIME_INTERVAL)
+            # sleep(MIN_REQUEST_TIME_INTERVAL if delay is None else delay)
+
             try:
                 first_poll.add_voters(vk.get_voters(first_poll), frequency, name = name)
+                i += 1
             except ValueError as e:
                 if verbose:
                     print(e)
 
-            # sleep(delay)
+            sleep(delay)
             # sleep(0.3 + random() * delay)
 
         pbar.update(1)
