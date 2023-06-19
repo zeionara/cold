@@ -92,7 +92,7 @@ class Attachment:
                     for answer in self.answers:
                         if answer.text == text:
                             return answer.id
-                        elif first_text:
+                        if first_text:
                             available_answers.append(answer.text)
                     first_text = False
 
